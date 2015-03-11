@@ -1,5 +1,6 @@
 <?php
 
+use voku\helper\Bootup;
 use voku\helper\UTF8;
 
 class UTF8Test extends PHPUnit_Framework_TestCase
@@ -823,6 +824,29 @@ class UTF8Test extends PHPUnit_Framework_TestCase
     foreach ($testArray as $before => $after) {
       $this->assertEquals($after, UTF8::to_utf8($before));
     }
+  }
+
+  public function test_entity_decode()
+  {
+    $encoded = '&lt;div&gt;Hello &lt;b&gt;Booya&lt;/b&gt;&lt;/div&gt;';
+    $decoded = UTF8::entity_decode($encoded);
+
+    $this->assertEquals('<div>Hello <b>Booya</b></div>', $decoded);
+
+    // Issue #3057 (https://github.com/bcit-ci/CodeIgniter/issues/3057)
+    $this->assertEquals(
+        '&foo should not include a semicolon',
+        UTF8::entity_decode('&foo should not include a semicolon')
+    );
+  }
+
+  public function test_get_random_bytes()
+  {
+    $length = "invalid";
+    $this->assertFalse(Bootup::get_random_bytes($length));
+
+    $length = 10;
+    $this->assertNotEmpty(Bootup::get_random_bytes($length));
   }
 
   public function testClean()

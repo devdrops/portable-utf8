@@ -376,6 +376,55 @@ class UTF8
   }
 
   /**
+   * Returns HTML escaped variable
+   *
+   * copy&past from https://github.com/bcit-ci/CodeIgniter/blob/develop/system/core/Common.php
+   *
+   * @param	  mixed	   $var		           The input string or array of strings to be escaped.
+   * @param	  bool	   $double_encode	   $double_encode set to "false" prevents escaping twice.
+   * @return	mixed			                 The escaped string or array of strings as a result.
+   */
+  public static function html_escape($var, $double_encode = true)
+  {
+    if (is_array($var)) {
+      return array_map('html_escape', $var, array_fill(0, count($var), $double_encode));
+    }
+
+    return htmlspecialchars($var, ENT_QUOTES, 'UTF-8', $double_encode);
+  }
+
+  /**
+   * Remove Invisible Characters
+   *
+   * This prevents sandwiching null characters
+   * between ascii characters, like Java\0script.
+   *
+   * copy&past from https://github.com/bcit-ci/CodeIgniter/blob/develop/system/core/Common.php
+   *
+   * @param	string     $str
+   * @param	bool       $url_encoded
+   * @return	string
+   */
+  public static function remove_invisible_characters($str, $url_encoded = true)
+  {
+    $non_displayables = array();
+    // every control character except newline (dec 10),
+    // carriage return (dec 13) and horizontal tab (dec 09)
+    if ($url_encoded) {
+      $non_displayables[] = '/%0[0-8bcef]/';	// url encoded 00-08, 11, 12, 14, 15
+      $non_displayables[] = '/%1[0-9a-f]/';	// url encoded 16-31
+    }
+
+    $non_displayables[] = '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]+/S';	// 00-08, 11, 12, 14-31, 127
+
+    do {
+      $str = preg_replace($non_displayables, '', $str, -1, $count);
+    } while ($count);
+
+    return $str;
+  }
+
+  /**
    * get data
    *
    * @param $file
@@ -390,6 +439,79 @@ class UTF8
     } else {
       return false;
     }
+  }
+
+  /**
+   * HTML Entities Decode
+   *
+   * A replacement for html_entity_decode()
+   *
+   * The reason we are not using html_entity_decode() by itself is because
+   * while it is not technically correct to leave out the semicolon
+   * at the end of an entity most browsers will still interpret the entity
+   * correctly. html_entity_decode() does not convert entities without
+   * semicolons, so we are left with our own little solution here. Bummer.
+   *
+   * @link  http://php.net/html-entity-decode
+   *
+   * @param  string $str     Input
+   * @param  string $charset Character set
+   *
+   * @return  string
+   */
+  public static function entity_decode($str, $charset = 'UTF-8')
+  {
+    if (strpos($str, '&') === false) {
+      return $str;
+    }
+
+    static $_entities;
+
+    $flag = Bootup::is_php('5.4') ? ENT_COMPAT | ENT_HTML5 : ENT_COMPAT;
+
+    do {
+      $str_compare = $str;
+
+      // Decode standard entities, avoiding false positives
+      if (preg_match_all('/&[a-z]{2,}(?![a-z;])/i', $str, $matches)) {
+        if (!isset($_entities)) {
+          $_entities = array_map(
+              'strtolower',
+              Bootup::is_php('5.3.4') ? get_html_translation_table(HTML_ENTITIES, $flag, $charset) : get_html_translation_table(HTML_ENTITIES, $flag)
+          );
+
+          // If we're not on PHP 5.4+, add the possibly dangerous HTML 5
+          // entities to the array manually
+          if ($flag === ENT_COMPAT) {
+            $_entities[':'] = '&colon;';
+            $_entities['('] = '&lpar;';
+            $_entities[')'] = '&rpar';
+            $_entities["\n"] = '&newline;';
+            $_entities["\t"] = '&tab;';
+          }
+        }
+
+        $replace = array();
+        $matches = array_unique(array_map(array('voku\helper\UTF8', 'strtolower'), $matches[0]));
+        for ($i = 0, $c = count($matches); $i < $c; $i++) {
+          if (($char = array_search($matches[$i] . ';', $_entities, true)) !== false) {
+            $replace[$matches[$i]] = $char;
+          }
+        }
+
+        $str = UTF8::str_ireplace(array_keys($replace), array_values($replace), $str);
+      }
+
+      // Decode numeric & UTF16 two byte entities
+      $str = self::html_entity_decode(
+          preg_replace('/(&#(?:x0*[0-9a-f]{2,5}(?![0-9a-f;])|(?:0*\d{2,4}(?![0-9;]))))/iS', '$1;', $str),
+          $flag,
+          $charset
+      );
+    }
+    while ($str_compare !== $str);
+
+    return $str;
   }
 
   /**
