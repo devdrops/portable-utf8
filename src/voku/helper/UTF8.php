@@ -1617,7 +1617,7 @@ class UTF8
     }
 
     $string = preg_replace("/%u([0-9a-f]{3,4})/i", "&#x\\1;", urldecode($string));
-    $string = self::fix_simple_utf8(rawurldecode(self::html_entity_decode(self::toUTF8($string))));
+    $string = self::fix_simple_utf8(rawurldecode(self::entity_decode(self::toUTF8($string))));
 
     if (strstr($string, "\\u")) {
       $string = json_decode('"' . $string . '"');
