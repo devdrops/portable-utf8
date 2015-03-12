@@ -671,7 +671,7 @@ class Security
     return str_replace(
         $this->xss_hash(),
         '&',
-        UTF8::html_entity_decode($match, 'UTF-8')
+        UTF8::entity_decode($match, 'UTF-8')
     );
   }
 
