@@ -830,17 +830,17 @@ class UTF8Test extends PHPUnit_Framework_TestCase
     }
   }
 
-  public function test_entity_decode()
+  public function test_html_entity_decode()
   {
     $encoded = '&lt;div&gt;Hello &lt;b&gt;Booya&lt;/b&gt;&lt;/div&gt;';
-    $decoded = UTF8::entity_decode($encoded);
+    $decoded = UTF8::html_entity_decode($encoded);
 
     $this->assertEquals('<div>Hello <b>Booya</b></div>', $decoded);
 
     // Issue #3057 (https://github.com/bcit-ci/CodeIgniter/issues/3057)
     $this->assertEquals(
         '&foo should not include a semicolon',
-        UTF8::entity_decode('&foo should not include a semicolon')
+        UTF8::html_entity_decode('&foo should not include a semicolon')
     );
   }
 

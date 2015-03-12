@@ -442,9 +442,8 @@ class UTF8
   }
 
   /**
-   * HTML Entities Decode
    *
-   * A replacement for html_entity_decode()
+   * UTF-8 version of html_entity_decode()
    *
    * The reason we are not using html_entity_decode() by itself is because
    * while it is not technically correct to leave out the semicolon
@@ -452,37 +451,92 @@ class UTF8
    * correctly. html_entity_decode() does not convert entities without
    * semicolons, so we are left with our own little solution here. Bummer.
    *
-   * @link  http://php.net/html-entity-decode
+   * Convert all HTML entities to their applicable characters
    *
-   * @param  string $str     Input
-   * @param  string $charset Character set
+   * @link http://php.net/manual/en/function.html-entity-decode.php
    *
-   * @return  string
+   * @param string $string   <p>
+   *                         The input string.
+   *                         </p>
+   * @param int    $flags    [optional] <p>
+   *                         A bitmask of one or more of the following flags, which specify how to handle quotes and
+   *                         which document type to use. The default is ENT_COMPAT | ENT_HTML401.
+   *                         <table>
+   *                         Available <i>flags</i> constants
+   *                         <tr valign="top">
+   *                         <td>Constant Name</td>
+   *                         <td>Description</td>
+   *                         </tr>
+   *                         <tr valign="top">
+   *                         <td><b>ENT_COMPAT</b></td>
+   *                         <td>Will convert double-quotes and leave single-quotes alone.</td>
+   *                         </tr>
+   *                         <tr valign="top">
+   *                         <td><b>ENT_QUOTES</b></td>
+   *                         <td>Will convert both double and single quotes.</td>
+   *                         </tr>
+   *                         <tr valign="top">
+   *                         <td><b>ENT_NOQUOTES</b></td>
+   *                         <td>Will leave both double and single quotes unconverted.</td>
+   *                         </tr>
+   *                         <tr valign="top">
+   *                         <td><b>ENT_HTML401</b></td>
+   *                         <td>
+   *                         Handle code as HTML 4.01.
+   *                         </td>
+   *                         </tr>
+   *                         <tr valign="top">
+   *                         <td><b>ENT_XML1</b></td>
+   *                         <td>
+   *                         Handle code as XML 1.
+   *                         </td>
+   *                         </tr>
+   *                         <tr valign="top">
+   *                         <td><b>ENT_XHTML</b></td>
+   *                         <td>
+   *                         Handle code as XHTML.
+   *                         </td>
+   *                         </tr>
+   *                         <tr valign="top">
+   *                         <td><b>ENT_HTML5</b></td>
+   *                         <td>
+   *                         Handle code as HTML 5.
+   *                         </td>
+   *                         </tr>
+   *                         </table>
+   *                         </p>
+   * @param string $encoding [optional] <p>
+   *                         Encoding to use.
+   *                         </p>
+   *
+   * @return string the decoded string.
    */
-  public static function entity_decode($str, $charset = 'UTF-8')
+  public static function html_entity_decode($string, $flags = null, $encoding = 'UTF-8')
   {
-    if (strpos($str, '&') === false) {
-      return $str;
+    if (strpos($string, '&') === false) {
+      return $string;
     }
 
     static $_entities;
 
-    $flag = Bootup::is_php('5.4') ? ENT_COMPAT | ENT_HTML5 : ENT_COMPAT;
+    if ($flags === null) {
+      $flags = Bootup::is_php('5.4') ? ENT_COMPAT | ENT_HTML5 : ENT_COMPAT;
+    }
 
     do {
-      $str_compare = $str;
+      $str_compare = $string;
 
       // Decode standard entities, avoiding false positives
-      if (preg_match_all('/&[a-z]{2,}(?![a-z;])/i', $str, $matches)) {
+      if (preg_match_all('/&[a-z]{2,}(?![a-z;])/i', $string, $matches)) {
         if (!isset($_entities)) {
           $_entities = array_map(
               'strtolower',
-              Bootup::is_php('5.3.4') ? get_html_translation_table(HTML_ENTITIES, $flag, $charset) : get_html_translation_table(HTML_ENTITIES, $flag)
+              Bootup::is_php('5.3.4') ? get_html_translation_table(HTML_ENTITIES, $flags, $encoding) : get_html_translation_table(HTML_ENTITIES, $flag)
           );
 
           // If we're not on PHP 5.4+, add the possibly dangerous HTML 5
           // entities to the array manually
-          if ($flag === ENT_COMPAT) {
+          if ($flags === ENT_COMPAT) {
             $_entities[':'] = '&colon;';
             $_entities['('] = '&lpar;';
             $_entities[')'] = '&rpar';
@@ -499,19 +553,19 @@ class UTF8
           }
         }
 
-        $str = UTF8::str_ireplace(array_keys($replace), array_values($replace), $str);
+        $string = UTF8::str_ireplace(array_keys($replace), array_values($replace), $string);
       }
 
       // Decode numeric & UTF16 two byte entities
-      $str = self::html_entity_decode(
-          preg_replace('/(&#(?:x0*[0-9a-f]{2,5}(?![0-9a-f;])|(?:0*\d{2,4}(?![0-9;]))))/iS', '$1;', $str),
-          $flag,
-          $charset
+      $string = html_entity_decode(
+          preg_replace('/(&#(?:x0*[0-9a-f]{2,5}(?![0-9a-f;])|(?:0*\d{2,4}(?![0-9;]))))/iS', '$1;', $string),
+          $flags,
+          $encoding
       );
     }
-    while ($str_compare !== $str);
+    while ($str_compare !== $string);
 
-    return $str;
+    return $string;
   }
 
   /**
@@ -1617,81 +1671,13 @@ class UTF8
     }
 
     $string = preg_replace("/%u([0-9a-f]{3,4})/i", "&#x\\1;", urldecode($string));
-    $string = self::fix_simple_utf8(rawurldecode(self::entity_decode(self::toUTF8($string))));
+    $string = self::fix_simple_utf8(rawurldecode(self::html_entity_decode(self::toUTF8($string))));
 
     if (strstr($string, "\\u")) {
       $string = json_decode('"' . $string . '"');
     }
 
     return $string;
-  }
-
-  /**
-   * UTF-8 version of html_entity_decode()
-   *
-   * Convert all HTML entities to their applicable characters
-   *
-   * @link http://php.net/manual/en/function.html-entity-decode.php
-   *
-   * @param string $string   <p>
-   *                         The input string.
-   *                         </p>
-   * @param int    $flags    [optional] <p>
-   *                         A bitmask of one or more of the following flags, which specify how to handle quotes and
-   *                         which document type to use. The default is ENT_COMPAT | ENT_HTML401.
-   *                         <table>
-   *                         Available <i>flags</i> constants
-   *                         <tr valign="top">
-   *                         <td>Constant Name</td>
-   *                         <td>Description</td>
-   *                         </tr>
-   *                         <tr valign="top">
-   *                         <td><b>ENT_COMPAT</b></td>
-   *                         <td>Will convert double-quotes and leave single-quotes alone.</td>
-   *                         </tr>
-   *                         <tr valign="top">
-   *                         <td><b>ENT_QUOTES</b></td>
-   *                         <td>Will convert both double and single quotes.</td>
-   *                         </tr>
-   *                         <tr valign="top">
-   *                         <td><b>ENT_NOQUOTES</b></td>
-   *                         <td>Will leave both double and single quotes unconverted.</td>
-   *                         </tr>
-   *                         <tr valign="top">
-   *                         <td><b>ENT_HTML401</b></td>
-   *                         <td>
-   *                         Handle code as HTML 4.01.
-   *                         </td>
-   *                         </tr>
-   *                         <tr valign="top">
-   *                         <td><b>ENT_XML1</b></td>
-   *                         <td>
-   *                         Handle code as XML 1.
-   *                         </td>
-   *                         </tr>
-   *                         <tr valign="top">
-   *                         <td><b>ENT_XHTML</b></td>
-   *                         <td>
-   *                         Handle code as XHTML.
-   *                         </td>
-   *                         </tr>
-   *                         <tr valign="top">
-   *                         <td><b>ENT_HTML5</b></td>
-   *                         <td>
-   *                         Handle code as HTML 5.
-   *                         </td>
-   *                         </tr>
-   *                         </table>
-   *                         </p>
-   * @param string $encoding [optional] <p>
-   *                         Encoding to use.
-   *                         </p>
-   *
-   * @return string the decoded string.
-   */
-  public static function html_entity_decode($string, $flags = ENT_COMPAT, $encoding = 'UTF-8')
-  {
-    return html_entity_decode($string, $flags, $encoding);
   }
 
   /**
