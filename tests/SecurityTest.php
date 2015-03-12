@@ -20,7 +20,7 @@ class SecurityTest extends PHPUnit_Framework_TestCase {
 
     $harmless_string = $this->security->xss_clean($harm_string);
 
-    $this->assertEquals("Hello, i try to [removed]alert&#40;'Hack'&#41;;[removed] your site", $harmless_string);
+    $this->assertEquals("Hello, i try to alert&#40;'Hack'&#41;; your site", $harmless_string);
   }
 
   public function test_xss_clean_string_array()
@@ -32,7 +32,9 @@ class SecurityTest extends PHPUnit_Framework_TestCase {
         "<a href=\"http://test.com?param1=\"+onMouseOver%3D\"alert%281%29%3B&step=2&param12=A\">test</a>"
     );
 
+    $this->security->setReplacement('[removed]');
     $harmless_strings = $this->security->xss_clean($harm_strings);
+    $this->security->setReplacement('');
 
     $this->assertEquals("Hello, i try to [removed]alert&#40;'Hack'&#41;;[removed] your site", $harmless_strings[0]);
     $this->assertEquals("Simple clean string", $harmless_strings[1]);
@@ -87,9 +89,10 @@ class SecurityTest extends PHPUnit_Framework_TestCase {
 
   public function test_remove_evil_attributes()
   {
-    $this->assertEquals('<foo [removed]>', $this->security->remove_evil_attributes('<foo onAttribute="bar">', false));
-    $this->assertEquals('<foo [removed]>', $this->security->remove_evil_attributes('<foo onAttributeNoQuotes=bar>', false));
-    $this->assertEquals('<foo [removed]>', $this->security->remove_evil_attributes('<foo onAttributeWithSpaces = bar>', false));
+    $this->assertEquals('onAttribute="bar"', $this->security->remove_evil_attributes('onAttribute="bar"', false));
+    $this->assertEquals('<foo >', $this->security->remove_evil_attributes('<foo onAttribute="bar">', false));
+    $this->assertEquals('<foo >', $this->security->remove_evil_attributes('<foo onAttributeNoQuotes=bar>', false));
+    $this->assertEquals('<foo >', $this->security->remove_evil_attributes('<foo onAttributeWithSpaces = bar>', false));
     $this->assertEquals('<foo prefixOnAttribute="bar">', $this->security->remove_evil_attributes('<foo prefixOnAttribute="bar">', false));
     $this->assertEquals('<foo>onOutsideOfTag=test</foo>', $this->security->remove_evil_attributes('<foo>onOutsideOfTag=test</foo>', false));
     $this->assertEquals('onNoTagAtAll = true', $this->security->remove_evil_attributes('onNoTagAtAll = true', false));

@@ -78,21 +78,18 @@ class Security
   protected $_xss_hash;
 
   /**
+   * the replacement-string for not allowed strings
+   *
+   * @var string
+   */
+  protected $_replacement = '';
+
+  /**
    * List of never allowed strings
    *
    * @var  array
    */
-  protected $_never_allowed_str = array(
-      'document.cookie' => '[removed]',
-      'document.write'  => '[removed]',
-      '.parentNode'     => '[removed]',
-      '.innerHTML'      => '[removed]',
-      '-moz-binding'    => '[removed]',
-      '<!--'            => '&lt;!--',
-      '-->'             => '--&gt;',
-      '<![CDATA['       => '&lt;![CDATA[',
-      '<comment>'       => '&lt;comment&gt;'
-  );
+  protected $_never_allowed_str = array();
 
   /**
    * List of never allowed regex replacements
@@ -115,6 +112,21 @@ class Security
       'Redirect\s+30\d',
       "([\"'])?data\s*:[^\\1]*?base64[^\\1]*?,[^\\1]*?\\1?"
   );
+
+  public function __construct()
+  {
+    $this->_never_allowed_str = array(
+        'document.cookie' => $this->_replacement,
+        'document.write'  => $this->_replacement,
+        '.parentNode'     => $this->_replacement,
+        '.innerHTML'      => $this->_replacement,
+        '-moz-binding'    => $this->_replacement,
+        '<!--'            => '&lt;!--',
+        '-->'             => '--&gt;',
+        '<![CDATA['       => '&lt;![CDATA[',
+        '<comment>'       => '&lt;comment&gt;'
+    );
+  }
 
   /**
    * XSS Clean
@@ -308,7 +320,7 @@ class Security
       }
 
       if (preg_match('/script|xss/i', $str)) {
-        $str = preg_replace('#</*(?:script|xss).*?>#si', '[removed]', $str);
+        $str = preg_replace('#</*(?:script|xss).*?>#si', $this->_replacement, $str);
       }
     }
     while ($original !== $str);
@@ -388,7 +400,7 @@ class Security
     $str = str_replace(array_keys($this->_never_allowed_str), $this->_never_allowed_str, $str);
 
     foreach ($this->_never_allowed_regex as $regex) {
-      $str = preg_replace('#' . $regex . '#is', '[removed]', $str);
+      $str = preg_replace('#' . $regex . '#is', $this->_replacement, $str);
     }
 
     return $str;
@@ -439,11 +451,11 @@ class Security
       $count = $temp_count = 0;
 
       // replace occurrences of illegal attribute strings with quotes (042 and 047 are octal quotes)
-      $str = preg_replace('/(<[^>]+)(?<!\w)(' . implode('|', $evil_attributes) . ')\s*=\s*(\042|\047)([^\\2]*?)(\\2)/is', '$1[removed]', $str, -1, $temp_count);
+      $str = preg_replace('/(<[^>]+)(?<!\w)(' . implode('|', $evil_attributes) . ')\s*=\s*(\042|\047)([^\\2]*?)(\\2)/is', '$1' . $this->_replacement, $str, -1, $temp_count);
       $count += $temp_count;
 
       // find occurrences of illegal attribute strings without quotes
-      $str = preg_replace('/(<[^>]+)(?<!\w)(' . implode('|', $evil_attributes) . ')\s*=\s*([^\s>]*)/is', '$1[removed]', $str, -1, $temp_count);
+      $str = preg_replace('/(<[^>]+)(?<!\w)(' . implode('|', $evil_attributes) . ')\s*=\s*([^\s>]*)/is', '$1' . $this->_replacement, $str, -1, $temp_count);
       $count += $temp_count;
     }
     while ($count);
@@ -679,6 +691,16 @@ class Security
     }
 
     return $this->_xss_hash;
+  }
+
+  /**
+   * set the replacement-string for not allowed strings
+   *
+   * @param $string
+   */
+  public function setReplacement($string)
+  {
+    $this->_replacement = (string)$string;
   }
 
 }
