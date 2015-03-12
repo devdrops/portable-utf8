@@ -531,7 +531,7 @@ class UTF8
         if (!isset($_entities)) {
           $_entities = array_map(
               'strtolower',
-              Bootup::is_php('5.3.4') ? get_html_translation_table(HTML_ENTITIES, $flags, $encoding) : get_html_translation_table(HTML_ENTITIES, $flag)
+              Bootup::is_php('5.3.4') ? get_html_translation_table(HTML_ENTITIES, $flags, $encoding) : get_html_translation_table(HTML_ENTITIES, $flags)
           );
 
           // If we're not on PHP 5.4+, add the possibly dangerous HTML 5
